@@ -1,0 +1,23 @@
+# Core FastAPI dependencies (latest versions)
+fastapi
+uvicorn[standard]
+
+# Data validation
+pydantic
+pydantic-settings
+
+# Environment management
+python-dotenv
+
+# CORS support
+python-multipart
+
+# HTTP client for ICA Agent API
+httpx
+
+# Optional dependencies (commented out to avoid build issues)
+# GitPython
+# Radon
+# aiohttp
+
+# Made with Bob

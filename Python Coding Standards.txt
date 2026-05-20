@@ -1,0 +1,16 @@
+# Python Coding Standards
+
+## Complexity
+- Functions should have cyclomatic complexity < 10
+- Avoid deeply nested loops (max 3 levels)
+- Break down large functions into smaller ones
+
+## Security
+- Always validate user input
+- Use parameterized queries for SQL
+- Avoid eval() and exec()
+
+## Best Practices
+- Use type hints for function parameters
+- Write docstrings for all functions
+- Follow PEP 8 style guide
