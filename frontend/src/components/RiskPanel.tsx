@@ -1,6 +1,6 @@
 import React from 'react';
-import { AlertTriangle, GitBranch, Users, Activity, Calendar } from 'lucide-react';
-import type { RiskScore, CodeIssue } from '../types';
+import { AlertTriangle, GitBranch, Activity, Calendar } from 'lucide-react';
+import type { RiskScore } from '../types';
 
 interface RiskPanelProps {
   riskScore: RiskScore | null;
@@ -23,20 +23,6 @@ const getRiskBadgeClass = (level: string): string => {
   }
 };
 
-const getIssueIcon = (type: string) => {
-  switch (type) {
-    case 'circular_dependency':
-      return '🔄';
-    case 'high_complexity':
-      return '🔥';
-    case 'code_smell':
-      return '👃';
-    case 'security':
-      return '🔒';
-    default:
-      return '⚠️';
-  }
-};
 
 export const RiskPanel: React.FC<RiskPanelProps> = ({
   riskScore,

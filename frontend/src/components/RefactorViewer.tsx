@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, X, Download, Copy } from 'lucide-react';
+import { Check, X, Copy } from 'lucide-react';
 import type { RefactorResult } from '../types';
 
 interface RefactorViewerProps {

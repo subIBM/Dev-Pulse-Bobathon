@@ -21,7 +21,6 @@ export const SprintSurvivalScore: React.FC<SprintSurvivalScoreProps> = ({ sprint
   const probability = sprintSurvival.probability * 100;
   const isHealthy = probability >= 80;
   const isWarning = probability >= 60 && probability < 80;
-  const isCritical = probability < 60;
 
   const getColorClass = () => {
     if (isHealthy) return 'text-green-600';

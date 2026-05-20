@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Loader2, FolderOpen, AlertCircle } from 'lucide-react';
 import CodebaseMap from './components/CodebaseMap';
 import RiskPanel from './components/RiskPanel';
@@ -19,7 +19,7 @@ function App() {
   const [repositoryPath, setRepositoryPath] = useState('');
   const [repository, setRepository] = useState<RepositoryData | null>(null);
   const [sunburstData, setSunburstData] = useState<FileNode | null>(null);
-  const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
+  const [, setSelectedFile] = useState<FileInfo | null>(null);
   const [riskScore, setRiskScore] = useState<RiskScore | null>(null);
   const [sprintSurvival, setSprintSurvival] = useState<SprintSurvival | null>(null);
   const [refactorResult, setRefactorResult] = useState<RefactorResult | null>(null);

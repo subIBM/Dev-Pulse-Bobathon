@@ -64,7 +64,7 @@ export const CodebaseMap: React.FC<CodebaseMapProps> = ({
       .selectAll('path')
       .data(root.descendants())
       .join('path')
-      .attr('d', arc)
+      .attr('d', arc as any)
       .attr('fill', (d) => {
         const risk = d.data.risk || 0;
         return colorScale(risk);
@@ -83,15 +83,15 @@ export const CodebaseMap: React.FC<CodebaseMapProps> = ({
           paths.style('opacity', (node) => (node === d ? 1 : 0.6));
         }
       })
-      .on('mouseover', function (event, d) {
+      .on('mouseover', function (_event, d) {
         if (d.data.value) {
           d3.select(this)
             .style('opacity', 1)
             .attr('stroke-width', 2);
         }
       })
-      .on('mouseout', function (event, d) {
-        if (d !== selectedNode) {
+      .on('mouseout', function (_event, d) {
+        if (d.data !== selectedNode) {
           d3.select(this)
             .style('opacity', 0.9)
             .attr('stroke-width', 1.5);
@@ -112,13 +112,13 @@ export const CodebaseMap: React.FC<CodebaseMapProps> = ({
     svg
       .selectAll('text')
       .data(
-        root.descendants().filter((d) => {
+        root.descendants().filter((d: any) => {
           const angle = d.x1 - d.x0;
           return angle > 0.1 && d.depth > 0 && d.depth < 3;
         })
       )
       .join('text')
-      .attr('transform', (d) => {
+      .attr('transform', (d: any) => {
         const x = (((d.x0 + d.x1) / 2) * 180) / Math.PI;
         const y = (d.y0 + d.y1) / 2;
         return `rotate(${x - 90}) translate(${y},0) rotate(${x < 180 ? 0 : 180})`;
