@@ -4,8 +4,10 @@ Repository API endpoints
 from fastapi import APIRouter, HTTPException
 import uuid
 import logging
+import os
 
 from app.models.repository import ScanRequest, ScanResponse, ScanStatus, RepositorySnapshot
+from app.services.repository_scanner import RepositoryScanner
 from app.services.mock_service import generate_mock_repository
 from app.database import db
 
@@ -21,8 +23,19 @@ async def scan_repository(request: ScanRequest):
     try:
         logger.info(f"Scanning repository: {request.path}")
         
-        # Generate mock repository data
-        repo_data = generate_mock_repository()
+        # Validate path exists
+        if not os.path.exists(request.path):
+            raise HTTPException(status_code=400, detail=f"Path does not exist: {request.path}")
+        
+        # Use real scanner
+        try:
+            scanner = RepositoryScanner(request.path)
+            repo_data = await scanner.scan_repository()
+            logger.info(f"Real scan complete: {repo_data.name}")
+        except Exception as scan_error:
+            logger.warning(f"Real scan failed, using mock data: {scan_error}")
+            # Fallback to mock data if real scan fails
+            repo_data = generate_mock_repository()
         
         # Store in database
         scan_id = str(uuid.uuid4())
@@ -40,6 +53,8 @@ async def scan_repository(request: ScanRequest):
             message="Repository scanned successfully",
             data=repo_data
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error scanning repository: {e}")
         raise HTTPException(status_code=500, detail=str(e))

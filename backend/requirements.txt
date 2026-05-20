@@ -15,9 +15,13 @@ python-multipart
 # HTTP client for ICA Agent API
 httpx
 
-# Optional dependencies (commented out to avoid build issues)
-# GitPython
-# Radon
-# aiohttp
+# Git repository analysis
+GitPython
+
+# Code complexity analysis
+radon
+
+# Async file operations
+aiofiles
 
 # Made with Bob
