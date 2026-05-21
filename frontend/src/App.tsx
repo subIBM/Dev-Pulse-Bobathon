@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, FolderOpen, AlertCircle } from 'lucide-react';
+import { Loader2, FolderOpen, AlertCircle, Activity, ShieldAlert, Sparkles, Database } from 'lucide-react';
 import CodebaseMap from './components/CodebaseMap';
 import RiskPanel from './components/RiskPanel';
 import SprintSurvivalScore from './components/SprintSurvivalScore';
@@ -27,14 +27,12 @@ function App() {
   const [isApplying, setIsApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Convert repository data to sunburst format
   const convertToSunburst = (repo: RepositoryData): FileNode => {
     const root: FileNode = {
       name: repo.name,
       children: [],
     };
 
-    // Group files by directory
     const dirMap = new Map<string, FileNode>();
 
     repo.files.forEach((file) => {
@@ -42,10 +40,9 @@ function App() {
       let currentPath = '';
       let currentNode = root;
 
-      // Build directory structure
       for (let i = 0; i < parts.length - 1; i++) {
         currentPath += (currentPath ? '/' : '') + parts[i];
-        
+
         if (!dirMap.has(currentPath)) {
           const newNode: FileNode = {
             name: parts[i],
@@ -60,7 +57,6 @@ function App() {
         }
       }
 
-      // Add file node
       const fileNode: FileNode = {
         name: parts[parts.length - 1],
         path: file.path,
@@ -87,23 +83,22 @@ function App() {
 
     try {
       const response = await repositoryApi.scanRepository(repositoryPath);
-      
+
       if (response.status === 'complete' && response.data) {
         setRepository(response.data);
         setSunburstData(convertToSunburst(response.data));
-        
-        // Get sprint survival data
+
         const risks = await analysisApi.getRisks();
         setSprintSurvival(risks.sprint_survival);
+        setIsScanning(false);
       } else {
-        // Poll for completion
         const pollInterval = setInterval(async () => {
           const status = await repositoryApi.getScanStatus(response.scan_id);
           if (status.status === 'complete' && status.data) {
             clearInterval(pollInterval);
             setRepository(status.data);
             setSunburstData(convertToSunburst(status.data));
-            
+
             const risks = await analysisApi.getRisks();
             setSprintSurvival(risks.sprint_survival);
             setIsScanning(false);
@@ -124,12 +119,9 @@ function App() {
     if (!file.path) return;
 
     try {
-      // Find full file info
-      const fileInfo = repository?.files.find(f => f.path === file.path);
+      const fileInfo = repository?.files.find((f) => f.path === file.path);
       if (fileInfo) {
         setSelectedFile(fileInfo);
-        
-        // Get detailed risk analysis
         const analysis = await analysisApi.analyzeFile(file.path);
         setRiskScore(analysis.risk_score);
       }
@@ -146,12 +138,8 @@ function App() {
     setError(null);
 
     try {
-      const response = await refactorApi.generateRefactor(
-        riskScore.file,
-        [] // Issues would come from the audit result
-      );
+      const response = await refactorApi.generateRefactor(riskScore.file, []);
 
-      // Poll for refactor completion
       const pollInterval = setInterval(async () => {
         const result = await refactorApi.getRefactor(response.refactor_id);
         if (result.status === 'complete') {
@@ -178,17 +166,16 @@ function App() {
 
     try {
       await refactorApi.applyRefactor(refactorResult.refactor_id);
-      
-      // Refresh data
+
       if (repository) {
         const updatedRepo = await repositoryApi.getRepositorySummary();
         setRepository(updatedRepo);
         setSunburstData(convertToSunburst(updatedRepo));
-        
+
         const risks = await analysisApi.getRisks();
         setSprintSurvival(risks.sprint_survival);
       }
-      
+
       setRefactorResult(null);
       setRiskScore(null);
       setSelectedFile(null);
@@ -203,127 +190,193 @@ function App() {
     setRefactorResult(null);
   };
 
+  const highRiskFiles = repository?.files.filter(
+    (f) => f.risk_level === 'high' || f.risk_level === 'critical'
+  ).length ?? 0;
+
+  const statCards = repository
+    ? [
+        {
+          label: 'Total Files',
+          value: repository.total_files.toLocaleString(),
+          icon: Database,
+          accent: 'from-cyan-400/20 to-cyan-500/5',
+          iconColor: 'text-cyan-300',
+        },
+        {
+          label: 'Lines of Code',
+          value: repository.total_loc.toLocaleString(),
+          icon: Activity,
+          accent: 'from-violet-400/20 to-violet-500/5',
+          iconColor: 'text-violet-300',
+        },
+        {
+          label: 'High Risk Files',
+          value: highRiskFiles.toLocaleString(),
+          icon: ShieldAlert,
+          accent: 'from-rose-400/20 to-rose-500/5',
+          iconColor: 'text-rose-300',
+        },
+        {
+          label: 'Repository',
+          value: repository.name,
+          icon: Sparkles,
+          accent: 'from-fuchsia-400/20 to-fuchsia-500/5',
+          iconColor: 'text-fuchsia-300',
+          isRepo: true,
+        },
+      ]
+    : [];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg flex items-center justify-center">
-                <span className="text-white text-xl font-bold">D</span>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">DevPulse</h1>
-                <p className="text-sm text-gray-600">AI-Powered Sprint Orchestrator</p>
-              </div>
+    <div className="relative min-h-screen overflow-hidden text-slate-100">
+      <div className="glow-orb left-[-8rem] top-16 h-72 w-72 bg-cyan-400/20" />
+      <div className="glow-orb right-[-6rem] top-40 h-80 w-80 bg-violet-500/20" />
+      <div className="glow-orb bottom-0 left-1/2 h-72 w-72 -translate-x-1/2 bg-fuchsia-500/10" />
+
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/45 backdrop-blur-2xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-cyan-300 via-sky-400 to-violet-500 shadow-[0_0_30px_rgba(56,189,248,0.25)]">
+              <span className="text-xl font-black text-slate-950">D</span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span>System Operational</span>
+            <div>
+              <div className="section-label mb-1">DevPulse Control Layer</div>
+              <h1 className="text-2xl font-semibold tracking-tight text-white">DevPulse</h1>
             </div>
+          </div>
+
+          <div className="status-pill border-emerald-400/20 bg-emerald-400/10 text-emerald-100">
+            <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_16px_rgba(110,231,183,0.95)]" />
+            System Operational
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Repository Scanner */}
+      <main className="relative z-10 mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+        <section className="glass-panel-strong relative overflow-hidden p-8 sm:p-10">
+          <div className="glow-orb -right-8 top-0 h-44 w-44 bg-cyan-400/15" />
+          <div className="glow-orb left-16 top-10 h-36 w-36 bg-violet-500/15" />
+          <div className="relative max-w-3xl">
+            <div className="section-label mb-3">AI-Powered Sprint Intelligence</div>
+            <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+              Sleek repository intelligence for architecture risk, sprint survival, and safe refactors.
+            </h2>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
+              Analyze local repositories, surface hotspots, and generate guided AI refactors inside a premium command-center experience.
+            </p>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <div className="status-pill">
+                <Sparkles className="h-4 w-4 text-cyan-300" />
+                Neon analytics UI
+              </div>
+              <div className="status-pill">
+                <ShieldAlert className="h-4 w-4 text-rose-300" />
+                Risk-aware insights
+              </div>
+              <div className="status-pill">
+                <Activity className="h-4 w-4 text-violet-300" />
+                Live architecture telemetry
+              </div>
+            </div>
+          </div>
+        </section>
+
         {!repository && (
-          <div className="card max-w-2xl mx-auto">
-            <div className="text-center mb-6">
-              <FolderOpen className="w-16 h-16 text-primary-600 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Scan Your Repository
-              </h2>
-              <p className="text-gray-600">
-                Point DevPulse to your local repository to analyze architecture health
+          <section className="glass-panel-strong mx-auto w-full max-w-3xl overflow-hidden p-8 sm:p-10">
+            <div className="mb-8 text-center">
+              <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-3xl border border-cyan-300/25 bg-cyan-400/10 shadow-[0_0_40px_rgba(34,211,238,0.2)]">
+                <FolderOpen className="h-10 w-10 text-cyan-300" />
+              </div>
+              <div className="section-label mb-2">Repository Onboarding</div>
+              <h3 className="text-3xl font-semibold text-white">Scan Your Repository</h3>
+              <p className="mx-auto mt-3 max-w-xl text-slate-300">
+                Point DevPulse to your local codebase to generate a premium architecture health and risk intelligence dashboard.
               </p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Repository Path
-                </label>
+                <label className="mb-2 block text-sm font-medium text-slate-200">Repository Path</label>
                 <input
                   type="text"
                   value={repositoryPath}
                   onChange={(e) => setRepositoryPath(e.target.value)}
                   placeholder="C:\projects\my-react-app"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="input-dark"
                   disabled={isScanning}
                 />
               </div>
 
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-800">{error}</p>
+                <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4 text-rose-100 backdrop-blur-xl">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-rose-300" />
+                    <p className="text-sm leading-6">{error}</p>
+                  </div>
                 </div>
               )}
 
-              <button
-                onClick={handleScan}
-                disabled={isScanning}
-                className={`w-full btn-primary flex items-center justify-center gap-2 ${
-                  isScanning ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
+              <button onClick={handleScan} disabled={isScanning} className="btn-primary w-full gap-2">
                 {isScanning ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <Loader2 className="h-5 w-5 animate-spin" />
                     <span>Scanning Repository...</span>
                   </>
                 ) : (
                   <>
-                    <FolderOpen className="w-5 h-5" />
-                    <span>Start Scan</span>
+                    <FolderOpen className="h-5 w-5" />
+                    <span>Launch Deep Scan</span>
                   </>
                 )}
               </button>
             </div>
-          </div>
+          </section>
         )}
 
-        {/* Dashboard */}
         {repository && sunburstData && (
-          <div className="space-y-6">
-            {/* Stats Bar */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="card">
-                <div className="text-sm text-gray-600 mb-1">Total Files</div>
-                <div className="text-3xl font-bold text-gray-900">{repository.total_files}</div>
-              </div>
-              <div className="card">
-                <div className="text-sm text-gray-600 mb-1">Lines of Code</div>
-                <div className="text-3xl font-bold text-gray-900">
-                  {repository.total_loc.toLocaleString()}
+          <section className="space-y-6">
+            {error && (
+              <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4 text-rose-100 backdrop-blur-xl">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-rose-300" />
+                  <p className="text-sm leading-6">{error}</p>
                 </div>
               </div>
-              <div className="card">
-                <div className="text-sm text-gray-600 mb-1">High Risk Files</div>
-                <div className="text-3xl font-bold text-red-600">
-                  {repository.files.filter(f => f.risk_level === 'high' || f.risk_level === 'critical').length}
-                </div>
-              </div>
-              <div className="card">
-                <div className="text-sm text-gray-600 mb-1">Repository</div>
-                <div className="text-lg font-semibold text-gray-900 truncate">{repository.name}</div>
-              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {statCards.map((card) => {
+                const Icon = card.icon;
+                return (
+                  <div key={card.label} className="glass-panel relative overflow-hidden p-5">
+                    <div className={`absolute inset-0 bg-gradient-to-br ${card.accent}`} />
+                    <div className="relative flex items-start justify-between gap-4">
+                      <div className="space-y-2">
+                        <div className="section-label">{card.label}</div>
+                        <div
+                          className={`font-semibold text-white ${
+                            card.isRepo ? 'truncate text-xl' : 'text-4xl'
+                          }`}
+                        >
+                          {card.value}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/10 p-3">
+                        <Icon className={`h-5 w-5 ${card.iconColor}`} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Main Dashboard Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left Column - Visualization */}
-              <div className="lg:col-span-2">
-                <CodebaseMap
-                  data={sunburstData}
-                  onFileClick={handleFileClick}
-                />
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+              <div className="xl:col-span-2">
+                <CodebaseMap data={sunburstData} onFileClick={handleFileClick} />
               </div>
 
-              {/* Right Column - Analysis */}
               <div className="space-y-6">
                 <SprintSurvivalScore sprintSurvival={sprintSurvival} />
                 <RiskPanel
@@ -333,11 +386,10 @@ function App() {
                 />
               </div>
             </div>
-          </div>
+          </section>
         )}
       </main>
 
-      {/* Refactor Viewer Modal */}
       {refactorResult && (
         <RefactorViewer
           refactorResult={refactorResult}

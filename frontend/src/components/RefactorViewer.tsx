@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, X, Copy } from 'lucide-react';
+import { Check, X, Copy, Sparkles } from 'lucide-react';
 import type { RefactorResult } from '../types';
 
 interface RefactorViewerProps {
@@ -27,110 +27,93 @@ export const RefactorViewer: React.FC<RefactorViewerProps> = ({
   const improvement = refactorResult.complexity_improvement;
   const reductionPercentage = improvement.reduction_percentage;
 
+  const tabClass = (tab: 'diff' | 'changes' | 'migration') =>
+    `rounded-full px-4 py-2 text-sm font-medium transition ${
+      activeTab === tab
+        ? 'bg-cyan-400/15 text-cyan-200 border border-cyan-300/20'
+        : 'text-slate-400 hover:bg-white/8 hover:text-slate-200'
+    }`;
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-primary-600 to-primary-700 text-white p-6">
-          <div className="flex items-start justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">
+      <div className="glass-panel-strong flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden">
+        <div className="relative overflow-hidden border-b border-white/10 bg-gradient-to-r from-cyan-400/12 via-violet-500/12 to-fuchsia-500/12 p-6">
+          <div className="glow-orb right-8 top-4 h-32 w-32 bg-cyan-400/15" />
+          <div className="relative flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold mb-2">🤖 Bob AI Refactor Complete</h2>
-              <p className="text-primary-100 text-sm font-mono">{refactorResult.file_path}</p>
+              <div className="section-label mb-2">AI Refactor Output</div>
+              <h2 className="mb-2 text-2xl font-semibold text-white">Bob AI Refactor Complete</h2>
+              <p className="code-pill">{refactorResult.file_path}</p>
             </div>
             <button
               onClick={onReject}
-              className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-colors"
+              className="rounded-full border border-white/10 bg-white/8 p-2 text-slate-200 transition hover:bg-white/12"
             >
-              <X className="w-6 h-6" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Complexity Improvement Badge */}
-          <div className="mt-4 inline-flex items-center gap-3 bg-white bg-opacity-20 rounded-lg px-4 py-2">
+          <div className="relative mt-5 inline-flex flex-wrap items-center gap-4 rounded-2xl border border-white/10 bg-white/8 px-5 py-3 backdrop-blur-xl">
+            <Sparkles className="h-5 w-5 text-cyan-300" />
             <div className="text-center">
-              <div className="text-2xl font-bold">{improvement.before}</div>
-              <div className="text-xs text-primary-100">Before</div>
+              <div className="text-2xl font-semibold text-white">{improvement.before}</div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Before</div>
             </div>
-            <div className="text-2xl">→</div>
+            <div className="text-xl text-slate-500">→</div>
             <div className="text-center">
-              <div className="text-2xl font-bold">{improvement.after}</div>
-              <div className="text-xs text-primary-100">After</div>
+              <div className="text-2xl font-semibold text-white">{improvement.after}</div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">After</div>
             </div>
-            <div className="ml-2 text-center">
-              <div className="text-2xl font-bold text-green-300">-{reductionPercentage}%</div>
-              <div className="text-xs text-primary-100">Complexity</div>
+            <div className="text-center">
+              <div className="text-2xl font-semibold text-emerald-300">-{reductionPercentage}%</div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Complexity</div>
             </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="border-b bg-gray-50">
-          <div className="flex gap-1 px-6">
-            <button
-              onClick={() => setActiveTab('diff')}
-              className={`px-4 py-3 font-medium text-sm transition-colors ${
-                activeTab === 'diff'
-                  ? 'border-b-2 border-primary-600 text-primary-600'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
+        <div className="border-b border-white/10 bg-slate-950/50 px-6 py-4">
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setActiveTab('diff')} className={tabClass('diff')}>
               Code Diff
             </button>
-            <button
-              onClick={() => setActiveTab('changes')}
-              className={`px-4 py-3 font-medium text-sm transition-colors ${
-                activeTab === 'changes'
-                  ? 'border-b-2 border-primary-600 text-primary-600'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
+            <button onClick={() => setActiveTab('changes')} className={tabClass('changes')}>
               Changes ({refactorResult.changes.length})
             </button>
-            <button
-              onClick={() => setActiveTab('migration')}
-              className={`px-4 py-3 font-medium text-sm transition-colors ${
-                activeTab === 'migration'
-                  ? 'border-b-2 border-primary-600 text-primary-600'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
+            <button onClick={() => setActiveTab('migration')} className={tabClass('migration')}>
               Migration Steps
             </button>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-6 text-slate-200">
           {activeTab === 'diff' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-800">Side-by-Side Comparison</h3>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">Side-by-Side Comparison</h3>
                 <button
                   onClick={handleCopy}
-                  className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700"
+                  className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-200 transition hover:bg-cyan-400/15"
                 >
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   {copied ? 'Copied!' : 'Copy Refactored Code'}
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {/* Original Code */}
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <div>
-                  <div className="bg-red-50 border border-red-200 rounded-t-lg px-4 py-2">
-                    <span className="text-sm font-semibold text-red-800">Original Code</span>
+                  <div className="rounded-t-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3">
+                    <span className="text-sm font-semibold text-rose-100">Original Code</span>
                   </div>
-                  <pre className="bg-gray-900 text-gray-100 p-4 rounded-b-lg overflow-x-auto text-sm font-mono max-h-96 overflow-y-auto">
+                  <pre className="max-h-96 overflow-auto rounded-b-2xl border border-t-0 border-white/10 bg-slate-950/90 p-4 text-sm text-slate-100">
                     {refactorResult.original_code}
                   </pre>
                 </div>
 
-                {/* Refactored Code */}
                 <div>
-                  <div className="bg-green-50 border border-green-200 rounded-t-lg px-4 py-2">
-                    <span className="text-sm font-semibold text-green-800">Refactored Code</span>
+                  <div className="rounded-t-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
+                    <span className="text-sm font-semibold text-emerald-100">Refactored Code</span>
                   </div>
-                  <pre className="bg-gray-900 text-gray-100 p-4 rounded-b-lg overflow-x-auto text-sm font-mono max-h-96 overflow-y-auto">
+                  <pre className="max-h-96 overflow-auto rounded-b-2xl border border-t-0 border-white/10 bg-slate-950/90 p-4 text-sm text-slate-100">
                     {refactorResult.refactored_code}
                   </pre>
                 </div>
@@ -140,26 +123,26 @@ export const RefactorViewer: React.FC<RefactorViewerProps> = ({
 
           {activeTab === 'changes' && (
             <div className="space-y-4">
-              <h3 className="font-semibold text-gray-800 mb-4">Changes Made</h3>
+              <h3 className="mb-4 text-lg font-semibold text-white">Changes Made</h3>
               {refactorResult.changes.map((change, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4">
+                <div key={index} className="rounded-2xl border border-white/10 bg-white/6 p-4 backdrop-blur-xl">
                   <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center font-semibold">
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-400/10 font-semibold text-cyan-200">
                       {index + 1}
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="rounded-full border border-violet-300/20 bg-violet-400/10 px-3 py-1 text-xs font-semibold text-violet-200">
                           {change.type.replace(/_/g, ' ').toUpperCase()}
                         </span>
                       </div>
-                      <p className="text-gray-700 mb-2">{change.description}</p>
+                      <p className="text-slate-200">{change.description}</p>
                       {change.files_created && change.files_created.length > 0 && (
-                        <div className="mt-2">
-                          <span className="text-sm font-medium text-gray-600">Files Created:</span>
-                          <ul className="mt-1 space-y-1">
+                        <div className="mt-3">
+                          <span className="text-sm font-medium text-slate-300">Files Created</span>
+                          <ul className="mt-2 space-y-1">
                             {change.files_created.map((file, idx) => (
-                              <li key={idx} className="text-sm text-gray-600 font-mono">
+                              <li key={idx} className="font-mono text-sm text-cyan-200">
                                 + {file}
                               </li>
                             ))}
@@ -175,29 +158,29 @@ export const RefactorViewer: React.FC<RefactorViewerProps> = ({
 
           {activeTab === 'migration' && (
             <div className="space-y-4">
-              <h3 className="font-semibold text-gray-800 mb-4">Migration Steps</h3>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <p className="text-sm text-blue-800">
+              <h3 className="mb-4 text-lg font-semibold text-white">Migration Steps</h3>
+              <div className="rounded-2xl border border-cyan-300/15 bg-cyan-400/8 p-4">
+                <p className="text-sm text-cyan-100">
                   Follow these steps to safely apply the refactoring to your codebase.
                 </p>
               </div>
               <ol className="space-y-3">
                 {refactorResult.migration_steps.map((step, index) => (
                   <li key={index} className="flex gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center font-semibold">
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 font-semibold text-slate-950">
                       {index + 1}
                     </div>
-                    <div className="flex-1 pt-1">
-                      <p className="text-gray-700">{step}</p>
+                    <div className="flex-1 rounded-2xl border border-white/10 bg-white/6 px-4 py-3">
+                      <p className="text-slate-200">{step}</p>
                     </div>
                   </li>
                 ))}
               </ol>
 
               {refactorResult.test_code && (
-                <div className="mt-6 pt-6 border-t">
-                  <h4 className="font-semibold text-gray-800 mb-3">Generated Tests</h4>
-                  <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm font-mono max-h-64 overflow-y-auto">
+                <div className="mt-6 border-t border-white/10 pt-6">
+                  <h4 className="mb-3 text-base font-semibold text-white">Generated Tests</h4>
+                  <pre className="max-h-64 overflow-auto rounded-2xl border border-white/10 bg-slate-950/90 p-4 text-sm text-slate-100">
                     {refactorResult.test_code}
                   </pre>
                 </div>
@@ -206,32 +189,21 @@ export const RefactorViewer: React.FC<RefactorViewerProps> = ({
           )}
         </div>
 
-        {/* Footer Actions */}
-        <div className="border-t bg-gray-50 p-6 flex items-center justify-between">
-          <button
-            onClick={onReject}
-            className="btn-secondary flex items-center gap-2"
-            disabled={isApplying}
-          >
-            <X className="w-4 h-4" />
+        <div className="flex items-center justify-between border-t border-white/10 bg-slate-950/50 p-6">
+          <button onClick={onReject} className="btn-secondary gap-2" disabled={isApplying}>
+            <X className="h-4 w-4" />
             Cancel
           </button>
 
-          <button
-            onClick={onApply}
-            disabled={isApplying}
-            className={`btn-primary flex items-center gap-2 ${
-              isApplying ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
+          <button onClick={onApply} disabled={isApplying} className="btn-primary gap-2">
             {isApplying ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-slate-950" />
                 <span>Applying...</span>
               </>
             ) : (
               <>
-                <Check className="w-4 h-4" />
+                <Check className="h-4 w-4" />
                 <span>Apply Refactor</span>
               </>
             )}

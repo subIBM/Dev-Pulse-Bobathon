@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, GitBranch, Activity, Calendar } from 'lucide-react';
+import { AlertTriangle, GitBranch, Activity, Calendar, Sparkles } from 'lucide-react';
 import type { RiskScore } from '../types';
 
 interface RiskPanelProps {
@@ -23,7 +23,6 @@ const getRiskBadgeClass = (level: string): string => {
   }
 };
 
-
 export const RiskPanel: React.FC<RiskPanelProps> = ({
   riskScore,
   onRefactorClick,
@@ -31,12 +30,14 @@ export const RiskPanel: React.FC<RiskPanelProps> = ({
 }) => {
   if (!riskScore) {
     return (
-      <div className="card">
+      <div className="glass-panel-strong p-6">
         <div className="text-center py-12">
-          <AlertTriangle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-600">No File Selected</h3>
-          <p className="text-sm text-gray-500 mt-2">
-            Click on a file in the codebase map to view risk analysis
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl border border-white/10 bg-white/8">
+            <AlertTriangle className="h-8 w-8 text-slate-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-white">No File Selected</h3>
+          <p className="mt-2 text-sm text-slate-400">
+            Select a segment from the architecture map to unlock file-level risk intelligence.
           </p>
         </div>
       </div>
@@ -47,97 +48,93 @@ export const RiskPanel: React.FC<RiskPanelProps> = ({
   const conflictProbability = (riskScore.merge_conflict_probability * 100).toFixed(0);
 
   return (
-    <div className="card space-y-6">
-      {/* Header */}
-      <div className="border-b pb-4">
-        <div className="flex items-start justify-between">
+    <div className="glass-panel-strong space-y-6 p-6">
+      <div className="border-b border-white/10 pb-5">
+        <div className="mb-2 section-label">Risk Intelligence</div>
+        <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <h3 className="text-lg font-bold text-gray-800 mb-2">Risk Analysis</h3>
-            <p className="text-sm text-gray-600 font-mono break-all">{riskScore.file}</p>
+            <h3 className="text-xl font-semibold text-white">Risk Analysis</h3>
+            <p className="code-pill mt-3 break-all">{riskScore.file}</p>
           </div>
-          <span className={getRiskBadgeClass(riskScore.risk_level)}>
-            {riskScore.risk_level.toUpperCase()}
-          </span>
+          <span className={getRiskBadgeClass(riskScore.risk_level)}>{riskScore.risk_level}</span>
         </div>
       </div>
 
-      {/* Risk Metrics */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Activity className="w-4 h-4 text-gray-600" />
-            <span className="text-sm font-medium text-gray-600">Risk Score</span>
+        <div className="metric-tile bg-cyan-400/8">
+          <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-300">
+            <Activity className="h-4 w-4 text-cyan-300" />
+            Risk Score
           </div>
-          <div className="text-3xl font-bold text-gray-800">{riskPercentage}%</div>
+          <div className="text-3xl font-semibold text-white">{riskPercentage}%</div>
         </div>
 
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <GitBranch className="w-4 h-4 text-gray-600" />
-            <span className="text-sm font-medium text-gray-600">Conflict Probability</span>
+        <div className="metric-tile bg-violet-400/8">
+          <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-300">
+            <GitBranch className="h-4 w-4 text-violet-300" />
+            Conflict Probability
           </div>
-          <div className="text-3xl font-bold text-orange-600">{conflictProbability}%</div>
+          <div className="text-3xl font-semibold text-white">{conflictProbability}%</div>
         </div>
       </div>
 
-      {/* Sprint Impact */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+      <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 backdrop-blur-xl">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-300" />
           <div>
-            <h4 className="font-semibold text-yellow-900 mb-1">Sprint Impact</h4>
-            <p className="text-sm text-yellow-800">{riskScore.sprint_impact}</p>
+            <h4 className="font-semibold text-amber-100">Sprint Impact</h4>
+            <p className="mt-1 text-sm leading-6 text-amber-50/90">{riskScore.sprint_impact}</p>
           </div>
         </div>
       </div>
 
-      {/* Predicted Conflict Date */}
       {riskScore.predicted_conflict_date && (
-        <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <Calendar className="w-5 h-5 text-red-600" />
-          <div>
-            <span className="text-sm font-medium text-red-900">Predicted Conflict Date:</span>
-            <span className="text-sm text-red-700 ml-2">{riskScore.predicted_conflict_date}</span>
+        <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4 backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            <Calendar className="h-5 w-5 text-rose-300" />
+            <div>
+              <span className="text-sm font-medium text-rose-100">Predicted Conflict Date</span>
+              <div className="mt-1 text-sm text-rose-50/90">{riskScore.predicted_conflict_date}</div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Risk Reasons */}
       <div>
-        <h4 className="font-semibold text-gray-800 mb-3">Risk Factors</h4>
-        <ul className="space-y-2">
+        <h4 className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-slate-300">
+          Risk Factors
+        </h4>
+        <ul className="space-y-3">
           {riskScore.reasons.map((reason, index) => (
-            <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
-              <span className="text-red-500 mt-1">•</span>
-              <span>{reason}</span>
+            <li
+              key={index}
+              className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-sm text-slate-200 backdrop-blur-xl"
+            >
+              <div className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-rose-300 shadow-[0_0_12px_rgba(253,164,175,0.9)]" />
+                <span>{reason}</span>
+              </div>
             </li>
           ))}
         </ul>
       </div>
 
-      {/* Action Button */}
-      <div className="pt-4 border-t">
-        <button
-          onClick={onRefactorClick}
-          disabled={isRefactoring}
-          className={`w-full btn-primary flex items-center justify-center gap-2 ${
-            isRefactoring ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
+      <div className="border-t border-white/10 pt-4">
+        <button onClick={onRefactorClick} disabled={isRefactoring} className="btn-primary w-full gap-2">
           {isRefactoring ? (
             <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-slate-950" />
               <span>Bob AI Analyzing...</span>
             </>
           ) : (
             <>
-              <span>🤖</span>
-              <span>Apply Bob AI Refactor</span>
+              <Sparkles className="h-4 w-4" />
+              <span>Generate Neon Refactor</span>
             </>
           )}
         </button>
-        <p className="text-xs text-gray-500 text-center mt-2">
-          AI will generate refactored code to fix these issues
+        <p className="mt-3 text-center text-xs text-slate-400">
+          AI will generate a safer structure to reduce complexity and refactor risk.
         </p>
       </div>
     </div>

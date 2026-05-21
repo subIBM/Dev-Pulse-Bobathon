@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import { Activity } from 'lucide-react';
 import type { FileNode } from '../types';
 
 interface CodebaseMapProps {
@@ -23,7 +24,6 @@ export const CodebaseMap: React.FC<CodebaseMapProps> = ({
 
     const radius = Math.min(width, height) / 2;
 
-    // Clear previous render
     d3.select(svgRef.current).selectAll('*').remove();
 
     const svg = d3
@@ -34,24 +34,19 @@ export const CodebaseMap: React.FC<CodebaseMapProps> = ({
       .append('g')
       .attr('transform', `translate(${width / 2},${height / 2})`);
 
-    // Create hierarchy
     const root = d3
       .hierarchy(data)
       .sum((d) => d.value || 0)
       .sort((a, b) => (b.value || 0) - (a.value || 0));
 
-    // Create partition layout
     const partition = d3.partition<FileNode>().size([2 * Math.PI, radius]);
-
     partition(root);
 
-    // Color scale based on risk
     const colorScale = d3
       .scaleLinear<string>()
       .domain([0, 0.3, 0.6, 1])
-      .range(['#4ade80', '#fbbf24', '#fb923c', '#ef4444']);
+      .range(['#34d399', '#fbbf24', '#fb7185', '#f43f5e']);
 
-    // Create arc generator
     const arc = d3
       .arc<d3.HierarchyRectangularNode<FileNode>>()
       .startAngle((d) => d.x0)
@@ -59,56 +54,47 @@ export const CodebaseMap: React.FC<CodebaseMapProps> = ({
       .innerRadius((d) => d.y0)
       .outerRadius((d) => d.y1);
 
-    // Draw arcs
     const paths = svg
       .selectAll('path')
       .data(root.descendants())
       .join('path')
       .attr('d', arc as any)
-      .attr('fill', (d) => {
-        const risk = d.data.risk || 0;
-        return colorScale(risk);
-      })
-      .attr('stroke', '#fff')
-      .attr('stroke-width', 1.5)
+      .attr('fill', (d) => colorScale(d.data.risk || 0))
+      .attr('stroke', 'rgba(15, 23, 42, 0.9)')
+      .attr('stroke-width', 1.3)
       .style('cursor', (d) => (d.data.value ? 'pointer' : 'default'))
-      .style('opacity', 0.9)
+      .style('opacity', 0.92)
+      .style('filter', (d) =>
+        d.data.value ? 'drop-shadow(0 0 18px rgba(59,130,246,0.10))' : 'none'
+      )
       .on('click', (event, d) => {
         event.stopPropagation();
         if (d.data.value) {
           setSelectedNode(d.data);
           onFileClick(d.data);
-          
-          // Highlight selected node
-          paths.style('opacity', (node) => (node === d ? 1 : 0.6));
+          paths.style('opacity', (node) => (node === d ? 1 : 0.5));
         }
       })
       .on('mouseover', function (_event, d) {
         if (d.data.value) {
-          d3.select(this)
-            .style('opacity', 1)
-            .attr('stroke-width', 2);
+          d3.select(this).style('opacity', 1).attr('stroke-width', 2.4);
         }
       })
       .on('mouseout', function (_event, d) {
         if (d.data !== selectedNode) {
-          d3.select(this)
-            .style('opacity', 0.9)
-            .attr('stroke-width', 1.5);
+          d3.select(this).style('opacity', 0.92).attr('stroke-width', 1.3);
         }
       });
 
-    // Add tooltips
     paths.append('title').text((d) => {
       const name = d.data.name;
       const loc = d.value || 0;
       const risk = ((d.data.risk || 0) * 100).toFixed(0);
       const complexity = d.data.complexity || 0;
-      
+
       return `${name}\nLOC: ${loc}\nRisk: ${risk}%\nComplexity: ${complexity}`;
     });
 
-    // Add labels for larger segments
     svg
       .selectAll('text')
       .data(
@@ -126,21 +112,28 @@ export const CodebaseMap: React.FC<CodebaseMapProps> = ({
       .attr('dy', '0.35em')
       .attr('text-anchor', 'middle')
       .style('font-size', '10px')
-      .style('fill', '#333')
+      .style('font-weight', '600')
+      .style('fill', '#dbeafe')
       .style('pointer-events', 'none')
       .text((d) => {
         const name = d.data.name;
         return name.length > 15 ? name.substring(0, 12) + '...' : name;
       });
 
-    // Add center label
+    svg
+      .append('circle')
+      .attr('r', radius * 0.18)
+      .attr('fill', 'rgba(15, 23, 42, 0.82)')
+      .attr('stroke', 'rgba(34, 211, 238, 0.25)')
+      .attr('stroke-width', 1.4);
+
     svg
       .append('text')
       .attr('text-anchor', 'middle')
-      .attr('dy', '-0.5em')
+      .attr('dy', '-0.7em')
       .style('font-size', '16px')
-      .style('font-weight', 'bold')
-      .style('fill', '#333')
+      .style('font-weight', '700')
+      .style('fill', '#f8fafc')
       .text(data.name);
 
     svg
@@ -148,38 +141,46 @@ export const CodebaseMap: React.FC<CodebaseMapProps> = ({
       .attr('text-anchor', 'middle')
       .attr('dy', '1em')
       .style('font-size', '12px')
-      .style('fill', '#666')
+      .style('fill', '#94a3b8')
       .text(`${root.value} LOC`);
-
   }, [data, onFileClick, width, height, selectedNode]);
 
   return (
-    <div className="flex flex-col items-center bg-white rounded-lg shadow-lg p-6">
-      <div className="mb-4">
-        <h2 className="text-2xl font-bold text-gray-800">Codebase Architecture Map</h2>
-        <p className="text-sm text-gray-600 mt-1">
-          Click on any segment to view details. Color indicates risk level.
-        </p>
+    <div className="glass-panel-strong overflow-hidden p-6 sm:p-8">
+      <div className="mb-6 flex flex-col gap-4 border-b border-white/10 pb-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="section-label mb-2">Architecture Visualization</div>
+          <h2 className="text-2xl font-semibold text-white">Codebase Architecture Map</h2>
+          <p className="mt-2 text-sm text-slate-300">
+            Click any segment to inspect risk details. Brighter tones indicate higher risk and volatility.
+          </p>
+        </div>
+        <div className="status-pill self-start sm:self-auto">
+          <Activity className="h-4 w-4 text-cyan-300" />
+          Interactive D3 Sunburst
+        </div>
       </div>
-      
-      <svg ref={svgRef} className="drop-shadow-md"></svg>
-      
-      <div className="mt-6 flex gap-6 text-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full bg-risk-low"></div>
-          <span>Low Risk</span>
+
+      <div className="flex justify-center">
+        <svg ref={svgRef} className="max-w-full drop-shadow-[0_20px_50px_rgba(2,6,23,0.6)]" />
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-3 text-sm text-slate-200">
+        <div className="status-pill">
+          <div className="h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]" />
+          Low Risk
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full bg-risk-medium"></div>
-          <span>Medium Risk</span>
+        <div className="status-pill">
+          <div className="h-3 w-3 rounded-full bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.7)]" />
+          Medium Risk
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full bg-risk-high"></div>
-          <span>High Risk</span>
+        <div className="status-pill">
+          <div className="h-3 w-3 rounded-full bg-rose-400 shadow-[0_0_12px_rgba(251,113,133,0.7)]" />
+          High Risk
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full bg-risk-critical"></div>
-          <span>Critical Risk</span>
+        <div className="status-pill">
+          <div className="h-3 w-3 rounded-full bg-rose-600 shadow-[0_0_14px_rgba(244,63,94,0.8)]" />
+          Critical Risk
         </div>
       </div>
     </div>
