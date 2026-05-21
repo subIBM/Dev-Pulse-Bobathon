@@ -304,83 +304,152 @@ def generate_mock_analysis():
 
 
 def generate_mock_refactor(file_path: str) -> RefactorResult:
-    """Generate mock refactor result"""
-    
-    original_code = """import React from 'react';
-import { AuthContext } from '../services/AuthService';
+    """Generate mock refactor result tailored to the requested file"""
+    normalized_path = file_path.replace("\\", "/")
+    file_name = normalized_path.split("/")[-1]
+    module_name = file_name.rsplit(".", 1)[0] if "." in file_name else file_name
+    safe_identifier = "".join(char if char.isalnum() else "_" for char in module_name).strip("_") or "module"
+    extension = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
 
-export const UserProfile = () => {
-  const handleUserUpdate = (data: any) => {
-    if (data.type === 'email') {
-      if (data.verified) {
-        if (data.primary) {
-          return true;
-        }
-      }
-    }
-    return false;
-  };
-  
-  return <div>Profile</div>;
-};"""
-    
-    refactored_code = """import React from 'react';
-import { UserProfileProps } from '../types/user';
-import { useUserUpdate } from '../hooks/useUserUpdate';
+    if extension == "py":
+        original_code = f'''# File: {file_name}
 
-export const UserProfile = ({ userId }: UserProfileProps) => {
-  const { handleUpdate } = useUserUpdate();
-  
-  return (
-    <div>
-      <h2>User Profile</h2>
-      {/* Clean component structure */}
-    </div>
-  );
-};"""
-    
-    changes = [
-        RefactorChange(
-            type=RefactorChangeType.EXTRACT_COMPONENT,
-            description="Extracted user update logic to custom hook",
-            files_created=["src/hooks/useUserUpdate.ts"]
-        ),
-        RefactorChange(
-            type=RefactorChangeType.REMOVE_DEPENDENCY,
-            description="Removed circular dependency by extracting shared types",
-            files_created=["src/types/user.ts"]
-        ),
-        RefactorChange(
-            type=RefactorChangeType.SIMPLIFY_LOGIC,
-            description="Simplified conditional logic and reduced nesting",
-            files_created=[]
-        ),
-    ]
-    
+def analyze_{safe_identifier}_payload(payload):
+    if not payload:
+        return {{"file": "{file_name}", "result": []}}
+
+    if isinstance(payload, dict):
+        if payload.get("source") == "{module_name}":
+            if payload.get("records"):
+                values = []
+                for record in payload.get("records", []):
+                    if record.get("is_valid"):
+                        values.append(record.get("value"))
+                return {{"file": "{file_name}", "result": values}}
+
+    return {{"file": "{file_name}", "result": []}}'''
+        refactored_code = f'''# Refactor target: {file_name}
+
+def _collect_valid_{safe_identifier}_values(records):
+    return [record.get("value") for record in records if record.get("is_valid")]
+
+
+def analyze_{safe_identifier}_payload(payload):
+    if not isinstance(payload, dict):
+        return {{"file": "{file_name}", "result": []}}
+
+    if payload.get("source") != "{module_name}":
+        return {{"file": "{file_name}", "result": []}}
+
+    records = payload.get("records", [])
+    return {{"file": "{file_name}", "result": _collect_valid_{safe_identifier}_values(records)}}'''
+        changes = [
+            RefactorChange(
+                type=RefactorChangeType.SIMPLIFY_LOGIC,
+                description=f"Converted nested payload parsing in {file_name} into guard-clause flow specific to {module_name}",
+                files_created=[]
+            ),
+            RefactorChange(
+                type=RefactorChangeType.EXTRACT_COMPONENT,
+                description=f"Extracted {safe_identifier}-specific record collection helper for {file_name}",
+                files_created=[]
+            ),
+        ]
+        migration_steps = [
+            f"1. Replace nested parsing logic inside {file_name} with explicit guard clauses for {module_name}",
+            f"2. Extract reusable record filtering helper dedicated to {file_name}",
+            f"3. Re-run tests for {file_name} input validation and valid-record extraction",
+            f"4. Verify the {module_name} source gate still rejects unrelated payloads",
+        ]
+        test_code = f'''def test_analyze_{safe_identifier}_payload_rejects_other_sources():
+    payload = {{"source": "other_module", "records": [{{"is_valid": True, "value": 1}}]}}
+    assert analyze_{safe_identifier}_payload(payload) == {{"file": "{file_name}", "result": []}}
+
+
+def test_analyze_{safe_identifier}_payload_returns_valid_values():
+    payload = {{
+        "source": "{module_name}",
+        "records": [
+            {{"is_valid": True, "value": "{file_name}-A"}},
+            {{"is_valid": False, "value": "{file_name}-B"}},
+            {{"is_valid": True, "value": "{file_name}-C"}},
+        ],
+    }}
+    assert analyze_{safe_identifier}_payload(payload) == {{"file": "{file_name}", "result": ["{file_name}-A", "{file_name}-C"]}}'''
+        before = 14
+        after = 6
+    else:
+        original_code = f'''// File: {file_name}
+export function process{safe_identifier.title()}Data(input: any) {{
+  if (input) {{
+    if (input.module === "{module_name}") {{
+      if (Array.isArray(input.entries)) {{
+        return input.entries
+          .filter((entry: any) => entry.enabled)
+          .map((entry: any) => `${{entry.value}}::{file_name}`);
+      }}
+    }}
+  }}
+  return [];
+}}'''
+        refactored_code = f'''// Refactor target: {file_name}
+const mapEnabled{safe_identifier.title()}Entries = (entries: any[] = []) =>
+  entries
+    .filter((entry) => entry.enabled)
+    .map((entry) => `${{entry.value}}::{file_name}`);
+
+export function process{safe_identifier.title()}Data(input: any) {{
+  if (!input || input.module !== "{module_name}" || !Array.isArray(input.entries)) {{
+    return [];
+  }}
+
+  return mapEnabled{safe_identifier.title()}Entries(input.entries);
+}}'''
+        changes = [
+            RefactorChange(
+                type=RefactorChangeType.SIMPLIFY_LOGIC,
+                description=f"Replaced nested branching in {file_name} with module-specific guard clauses",
+                files_created=[]
+            ),
+            RefactorChange(
+                type=RefactorChangeType.EXTRACT_COMPONENT,
+                description=f"Extracted {module_name}-specific enabled-entry mapping helper for {file_name}",
+                files_created=[]
+            ),
+        ]
+        migration_steps = [
+            f"1. Add a top-level guard clause for invalid {file_name} input shapes",
+            f"2. Extract enabled-entry mapping logic into a helper named for {module_name}",
+            f"3. Re-run tests for {file_name} with both matching and non-matching module values",
+            f"4. Verify generated output still tags values with {file_name}",
+        ]
+        test_code = f'''describe("process{safe_identifier.title()}Data", () => {{
+  it("ignores unrelated modules for {file_name}", () => {{
+    expect(process{safe_identifier.title()}Data({{ module: "other", entries: [{{ enabled: true, value: 1 }}] }})).toEqual([]);
+  }});
+
+  it("maps enabled entries for {file_name}", () => {{
+    expect(
+      process{safe_identifier.title()}Data({{
+        module: "{module_name}",
+        entries: [
+          {{ enabled: true, value: "A" }},
+          {{ enabled: false, value: "B" }},
+          {{ enabled: true, value: "C" }},
+        ],
+      }})
+    ).toEqual(["A::{file_name}", "C::{file_name}"]);
+  }});
+}});'''
+        before = 12
+        after = 5
+
     complexity_improvement = ComplexityImprovement(
-        before=18,
-        after=8,
-        reduction_percentage=55.6
+        before=before,
+        after=after,
+        reduction_percentage=round(((before - after) / before) * 100, 1)
     )
-    
-    migration_steps = [
-        "1. Create src/types/user.ts with UserProfileProps interface",
-        "2. Create src/hooks/useUserUpdate.ts with extracted logic",
-        "3. Update UserProfile.tsx imports and implementation",
-        "4. Run tests to verify functionality",
-        "5. Remove old AuthContext import"
-    ]
-    
-    test_code = """import { render, screen } from '@testing-library/react';
-import { UserProfile } from './UserProfile';
 
-describe('UserProfile', () => {
-  it('renders user profile', () => {
-    render(<UserProfile userId="123" />);
-    expect(screen.getByText('User Profile')).toBeInTheDocument();
-  });
-});"""
-    
     return RefactorResult(
         refactor_id=str(uuid.uuid4()),
         file_path=file_path,

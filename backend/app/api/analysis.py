@@ -4,7 +4,19 @@ Analysis API endpoints
 from fastapi import APIRouter, HTTPException
 import logging
 
-from app.models.analysis import AnalysisRequest, AnalysisResponse, RiskLevel, CodeIssue, IssueType, IssueSeverity, SprintSurvival
+from app.models.analysis import (
+    AnalysisRequest,
+    AnalysisResponse,
+    RiskLevel,
+    CodeIssue,
+    IssueType,
+    IssueSeverity,
+    SprintSurvival,
+    AnalyzeFileRequest,
+    AnalyzeFileResponse,
+    AuditResult,
+    RiskScore,
+)
 from app.services.mock_service import generate_mock_analysis
 from app.services.repository_scanner import RepositoryScanner
 from app.services.ica_agent_client import get_ica_agent_client
@@ -118,6 +130,142 @@ async def _perform_real_analysis(repo_data: dict) -> AnalysisResponse:
         sprint_survival_probability=survival_prob * 100,
         total_files_analyzed=total_files
     )
+
+
+@router.post("/file", response_model=AnalyzeFileResponse)
+async def analyze_file(request: AnalyzeFileRequest):
+    """
+    Analyze a specific file from the current scanned repository
+    """
+    try:
+        repo_data = db.get_current_repository()
+
+        if not repo_data:
+            analysis_data = db.get_current_analysis()
+            if analysis_data:
+                return AnalyzeFileResponse(
+                    audit_result=AuditResult(
+                        file=request.file_path,
+                        issues=[],
+                        overall_score=7.5,
+                        complexity_score=1
+                    ),
+                    risk_score=RiskScore(
+                        file=request.file_path,
+                        risk_score=0.25,
+                        risk_level=RiskLevel.LOW,
+                        merge_conflict_probability=0.1,
+                        sprint_impact="Repository state was reset after reload; re-scan to restore full file-specific intelligence.",
+                        reasons=["Repository state reset after backend reload"],
+                        predicted_conflict_date=None
+                    )
+                )
+            raise HTTPException(status_code=404, detail="No repository scanned yet")
+
+        repository_path = repo_data.get("path")
+        repository_files = repo_data.get("files", [])
+
+        matching_file = next(
+            (file for file in repository_files if file.get("path") == request.file_path),
+            None
+        )
+
+        if not matching_file:
+            raise HTTPException(status_code=404, detail=f"File not found in scanned repository: {request.file_path}")
+
+        complexity = matching_file.get("complexity", 1)
+        loc = matching_file.get("loc", 0)
+        risk_score_value = float(matching_file.get("risk_score", 0))
+        risk_level_value = matching_file.get("risk_level", "low")
+        active_branches = matching_file.get("active_branches", [])
+        contributors = matching_file.get("contributors", 0)
+
+        reasons = []
+        if complexity >= 15:
+            reasons.append(f"High complexity detected ({complexity})")
+        elif complexity >= 8:
+            reasons.append(f"Moderate complexity detected ({complexity})")
+
+        if loc >= 400:
+            reasons.append(f"Large file size ({loc} LOC)")
+        elif loc >= 150:
+            reasons.append(f"Medium file size ({loc} LOC)")
+
+        if len(active_branches) >= 2:
+            reasons.append(f"Active across {len(active_branches)} branches")
+
+        if contributors >= 3:
+            reasons.append(f"Touched by {contributors} contributors")
+
+        if not reasons:
+            reasons.append("General repository risk indicators detected")
+
+        merge_conflict_probability = min(
+            1.0,
+            round((len(active_branches) * 0.18) + (contributors * 0.08) + (complexity / 100), 2)
+        )
+
+        if risk_score_value >= 0.7:
+            sprint_impact = "Critical file with high delivery risk. Prioritize stabilization before sprint end."
+        elif risk_score_value >= 0.4:
+            sprint_impact = "This file may slow delivery and should be reviewed before merging parallel work."
+        else:
+            sprint_impact = "Current risk is manageable, but continue monitoring for changes."
+
+        audit_issues = []
+        if complexity >= 15:
+            audit_issues.append(CodeIssue(
+                type=IssueType.HIGH_COMPLEXITY,
+                severity=IssueSeverity.HIGH,
+                description=f"High cyclomatic complexity detected in {request.file_path}",
+                line=1,
+                suggestion="Break the module into smaller focused functions"
+            ))
+
+        if loc >= 400:
+            audit_issues.append(CodeIssue(
+                type=IssueType.CODE_SMELL,
+                severity=IssueSeverity.MEDIUM,
+                description=f"File is large ({loc} LOC), which increases change risk",
+                line=1,
+                suggestion="Split responsibilities into smaller modules"
+            ))
+
+        if len(active_branches) >= 2 or contributors >= 3:
+            audit_issues.append(CodeIssue(
+                type=IssueType.CODE_SMELL,
+                severity=IssueSeverity.MEDIUM,
+                description="Parallel activity suggests elevated merge conflict potential",
+                line=1,
+                suggestion="Coordinate ownership and merge order before refactoring"
+            ))
+
+        audit_result = AuditResult(
+            file=request.file_path,
+            issues=audit_issues,
+            overall_score=round(max(1, 10 - (risk_score_value * 10)), 1),
+            complexity_score=int(complexity)
+        )
+
+        risk_score = RiskScore(
+            file=request.file_path,
+            risk_score=risk_score_value,
+            risk_level=RiskLevel(risk_level_value),
+            merge_conflict_probability=merge_conflict_probability,
+            sprint_impact=sprint_impact,
+            reasons=reasons,
+            predicted_conflict_date=None
+        )
+
+        return AnalyzeFileResponse(
+            audit_result=audit_result,
+            risk_score=risk_score
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error analyzing file {request.file_path}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/current", response_model=AnalysisResponse)

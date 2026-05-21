@@ -18,14 +18,25 @@ export const RefactorViewer: React.FC<RefactorViewerProps> = ({
   const [activeTab, setActiveTab] = useState<'diff' | 'changes' | 'migration'>('diff');
   const [copied, setCopied] = useState(false);
 
+  const safeOriginalCode = refactorResult?.original_code || '// Original code preview unavailable';
+  const safeRefactoredCode = refactorResult?.refactored_code || '// Refactored code preview unavailable';
+  const safeChanges = refactorResult?.changes || [];
+  const safeMigrationSteps = refactorResult?.migration_steps || [];
+  const safeImprovement = refactorResult?.complexity_improvement || {
+    before: 0,
+    after: 0,
+    reduction_percentage: 0,
+  };
+  const safeFilePath = refactorResult?.file_path || 'Unknown file';
+  const safeTestCode = refactorResult?.test_code;
+
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(refactorResult.refactored_code);
+    await navigator.clipboard.writeText(safeRefactoredCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const improvement = refactorResult.complexity_improvement;
-  const reductionPercentage = improvement.reduction_percentage;
+  const reductionPercentage = safeImprovement.reduction_percentage;
 
   const tabClass = (tab: 'diff' | 'changes' | 'migration') =>
     `rounded-full px-4 py-2 text-sm font-medium transition ${
@@ -42,8 +53,8 @@ export const RefactorViewer: React.FC<RefactorViewerProps> = ({
           <div className="relative flex items-start justify-between gap-4">
             <div>
               <div className="section-label mb-2">AI Refactor Output</div>
-              <h2 className="mb-2 text-2xl font-semibold text-white">Bob AI Refactor Complete</h2>
-              <p className="code-pill">{refactorResult.file_path}</p>
+              <h2 className="mb-2 text-2xl font-semibold text-white">ICA Agent Refactor Complete</h2>
+              <p className="code-pill">{safeFilePath}</p>
             </div>
             <button
               onClick={onReject}
@@ -56,12 +67,12 @@ export const RefactorViewer: React.FC<RefactorViewerProps> = ({
           <div className="relative mt-5 inline-flex flex-wrap items-center gap-4 rounded-2xl border border-white/10 bg-white/8 px-5 py-3 backdrop-blur-xl">
             <Sparkles className="h-5 w-5 text-cyan-300" />
             <div className="text-center">
-              <div className="text-2xl font-semibold text-white">{improvement.before}</div>
+              <div className="text-2xl font-semibold text-white">{safeImprovement.before}</div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Before</div>
             </div>
             <div className="text-xl text-slate-500">→</div>
             <div className="text-center">
-              <div className="text-2xl font-semibold text-white">{improvement.after}</div>
+              <div className="text-2xl font-semibold text-white">{safeImprovement.after}</div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">After</div>
             </div>
             <div className="text-center">
@@ -77,7 +88,7 @@ export const RefactorViewer: React.FC<RefactorViewerProps> = ({
               Code Diff
             </button>
             <button onClick={() => setActiveTab('changes')} className={tabClass('changes')}>
-              Changes ({refactorResult.changes.length})
+              Changes ({safeChanges.length})
             </button>
             <button onClick={() => setActiveTab('migration')} className={tabClass('migration')}>
               Migration Steps
@@ -105,7 +116,7 @@ export const RefactorViewer: React.FC<RefactorViewerProps> = ({
                     <span className="text-sm font-semibold text-rose-100">Original Code</span>
                   </div>
                   <pre className="max-h-96 overflow-auto rounded-b-2xl border border-t-0 border-white/10 bg-slate-950/90 p-4 text-sm text-slate-100">
-                    {refactorResult.original_code}
+                    {safeOriginalCode}
                   </pre>
                 </div>
 
@@ -114,7 +125,7 @@ export const RefactorViewer: React.FC<RefactorViewerProps> = ({
                     <span className="text-sm font-semibold text-emerald-100">Refactored Code</span>
                   </div>
                   <pre className="max-h-96 overflow-auto rounded-b-2xl border border-t-0 border-white/10 bg-slate-950/90 p-4 text-sm text-slate-100">
-                    {refactorResult.refactored_code}
+                    {safeRefactoredCode}
                   </pre>
                 </div>
               </div>
@@ -124,7 +135,7 @@ export const RefactorViewer: React.FC<RefactorViewerProps> = ({
           {activeTab === 'changes' && (
             <div className="space-y-4">
               <h3 className="mb-4 text-lg font-semibold text-white">Changes Made</h3>
-              {refactorResult.changes.map((change, index) => (
+              {safeChanges.map((change, index) => (
                 <div key={index} className="rounded-2xl border border-white/10 bg-white/6 p-4 backdrop-blur-xl">
                   <div className="flex items-start gap-3">
                     <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-400/10 font-semibold text-cyan-200">
@@ -165,7 +176,7 @@ export const RefactorViewer: React.FC<RefactorViewerProps> = ({
                 </p>
               </div>
               <ol className="space-y-3">
-                {refactorResult.migration_steps.map((step, index) => (
+                {safeMigrationSteps.map((step, index) => (
                   <li key={index} className="flex gap-3">
                     <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 font-semibold text-slate-950">
                       {index + 1}
@@ -177,11 +188,11 @@ export const RefactorViewer: React.FC<RefactorViewerProps> = ({
                 ))}
               </ol>
 
-              {refactorResult.test_code && (
+              {safeTestCode && (
                 <div className="mt-6 border-t border-white/10 pt-6">
                   <h4 className="mb-3 text-base font-semibold text-white">Generated Tests</h4>
                   <pre className="max-h-64 overflow-auto rounded-2xl border border-white/10 bg-slate-950/90 p-4 text-sm text-slate-100">
-                    {refactorResult.test_code}
+                    {safeTestCode}
                   </pre>
                 </div>
               )}

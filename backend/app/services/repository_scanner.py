@@ -19,9 +19,9 @@ logger = logging.getLogger(__name__)
 class RepositoryScanner:
     """Scans repositories and analyzes code"""
     
-    # File extensions to analyze
+    # File extensions to deeply analyze for complexity/risk
     CODE_EXTENSIONS = {
-        '.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.cpp', '.c', 
+        '.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.cpp', '.c',
         '.go', '.rs', '.rb', '.php', '.cs', '.swift', '.kt', '.scala'
     }
     
@@ -29,6 +29,15 @@ class RepositoryScanner:
     SKIP_DIRS = {
         'node_modules', 'venv', '.venv', 'env', '.env', 'dist', 'build',
         '__pycache__', '.git', '.idea', '.vscode', 'target', 'bin', 'obj'
+    }
+
+    # File extensions to exclude from repository visualization/analysis
+    SKIP_FILE_EXTENSIONS = {
+        '.exe', '.dll', '.so', '.dylib', '.bin', '.pkl', '.pyc', '.class',
+        '.jar', '.war', '.ear', '.o', '.obj', '.a', '.lib', '.iso', '.img',
+        '.msi', '.apk', '.ipa', '.xlsx', '.xls', '.xlsm', '.xlsb', '.ods',
+        '.doc', '.docx', '.ppt', '.pptx', '.pdf', '.zip', '.rar', '.7z',
+        '.tar', '.gz', '.bz2', '.xz', '.db', '.sqlite', '.sqlite3'
     }
     
     def __init__(self, repo_path: str):
@@ -109,12 +118,11 @@ class RepositoryScanner:
             
             for filename in filenames:
                 file_path = Path(root) / filename
-                
-                # Check if it's a code file
-                if file_path.suffix.lower() not in self.CODE_EXTENSIONS:
+
+                if file_path.suffix.lower() in self.SKIP_FILE_EXTENSIONS:
                     continue
                 
-                # Analyze file
+                # Include all files recursively in the repository map
                 try:
                     file_info = await self._analyze_file(file_path)
                     if file_info:
@@ -139,24 +147,32 @@ class RepositoryScanner:
             # Get relative path from repo root
             rel_path = file_path.relative_to(self.repo_path)
             
-            # Analyze code
-            analyzer = CodeAnalyzer(str(file_path))
-            analysis = analyzer.get_full_analysis()
-            
-            if "error" in analysis:
-                return None
-            
-            # Get complexity metrics
-            complexity_data = analysis.get("complexity", {})
-            raw_metrics = analysis.get("raw_metrics", {})
-            
-            # Calculate complexity score
-            avg_complexity = complexity_data.get("average_complexity", 1)
-            max_complexity = complexity_data.get("max_complexity", 1)
-            complexity_score = max(avg_complexity, max_complexity)
-            
-            # Get LOC
-            loc = raw_metrics.get("loc", 0)
+            suffix = file_path.suffix.lower()
+
+            complexity_score = 1
+            loc = 0
+
+            if suffix in CodeAnalyzer.SUPPORTED_EXTENSIONS:
+                analyzer = CodeAnalyzer(str(file_path))
+                analysis = analyzer.get_full_analysis()
+
+                if "error" in analysis:
+                    return None
+
+                complexity_data = analysis.get("complexity", {})
+                raw_metrics = analysis.get("raw_metrics", {})
+
+                avg_complexity = complexity_data.get("average_complexity", 1)
+                max_complexity = complexity_data.get("max_complexity", 1)
+                complexity_score = max(avg_complexity, max_complexity)
+                loc = raw_metrics.get("loc", 0)
+            else:
+                try:
+                    stat = file_path.stat()
+                    size_bytes = stat.st_size
+                    loc = max(1, min(int(size_bytes / 4096) + 1, 25)) if size_bytes > 0 else 1
+                except Exception:
+                    loc = 1
             
             # Get Git info if available
             git_info = {}
@@ -171,12 +187,18 @@ class RepositoryScanner:
                 last_modified = git_info.get("last_modified", datetime.now())
             
             # Calculate risk score
-            risk_score = self._calculate_risk_score(
-                complexity_score,
-                len(active_branches),
-                contributors,
-                loc
-            )
+            if suffix in CodeAnalyzer.SUPPORTED_EXTENSIONS:
+                risk_score = self._calculate_risk_score(
+                    complexity_score,
+                    len(active_branches),
+                    contributors,
+                    loc
+                )
+            else:
+                risk_score = min(
+                    1.0,
+                    round((len(active_branches) * 0.08) + (contributors * 0.04) + min(loc / 1000, 0.12), 2)
+                )
             
             # Determine risk level
             if risk_score > 0.7:

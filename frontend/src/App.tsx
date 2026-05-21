@@ -14,6 +14,14 @@ import type {
   FileInfo,
 } from './types';
 
+const UNSUPPORTED_REFACTOR_EXTENSIONS = new Set([
+  '.xlsx', '.xls', '.xlsm', '.xlsb', '.ods',
+  '.doc', '.docx', '.ppt', '.pptx', '.pdf',
+  '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz',
+  '.exe', '.dll', '.so', '.dylib', '.bin',
+  '.db', '.sqlite', '.sqlite3', '.jar', '.war'
+]);
+
 function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [repositoryPath, setRepositoryPath] = useState('');
@@ -34,9 +42,31 @@ function App() {
     };
 
     const dirMap = new Map<string, FileNode>();
+    const topLevelFilesBucket: FileNode = {
+      name: 'Root Files',
+      path: '__root_files__',
+      children: [],
+    };
 
     repo.files.forEach((file) => {
-      const parts = file.path.split('/');
+      const normalizedPath = file.path.replace(/\\/g, '/');
+      const parts = normalizedPath.split('/').filter(Boolean);
+
+      const fileNode: FileNode = {
+        name: parts[parts.length - 1] || normalizedPath,
+        path: normalizedPath,
+        value: file.loc,
+        complexity: file.complexity,
+        risk: file.risk_score,
+        riskLevel: file.risk_level,
+      };
+
+      if (parts.length === 1) {
+        topLevelFilesBucket.children = topLevelFilesBucket.children || [];
+        topLevelFilesBucket.children.push(fileNode);
+        return;
+      }
+
       let currentPath = '';
       let currentNode = root;
 
@@ -46,6 +76,7 @@ function App() {
         if (!dirMap.has(currentPath)) {
           const newNode: FileNode = {
             name: parts[i],
+            path: currentPath,
             children: [],
           };
           dirMap.set(currentPath, newNode);
@@ -57,17 +88,13 @@ function App() {
         }
       }
 
-      const fileNode: FileNode = {
-        name: parts[parts.length - 1],
-        path: file.path,
-        value: file.loc,
-        complexity: file.complexity,
-        risk: file.risk_score,
-        riskLevel: file.risk_level,
-      };
       currentNode.children = currentNode.children || [];
       currentNode.children.push(fileNode);
     });
+
+    if (topLevelFilesBucket.children?.length) {
+      root.children?.unshift(topLevelFilesBucket);
+    }
 
     return root;
   };
@@ -118,21 +145,45 @@ function App() {
   const handleFileClick = async (file: FileNode) => {
     if (!file.path) return;
 
+    setError(null);
+    setRefactorResult(null);
+    setRiskScore(null);
+
     try {
-      const fileInfo = repository?.files.find((f) => f.path === file.path);
-      if (fileInfo) {
-        setSelectedFile(fileInfo);
-        const analysis = await analysisApi.analyzeFile(file.path);
-        setRiskScore(analysis.risk_score);
+      const normalizedTargetPath = file.path.replace(/\\/g, '/');
+      const fileInfo = repository?.files.find(
+        (f) =>
+          f.path === file.path ||
+          f.path.replace(/\\/g, '/') === normalizedTargetPath ||
+          normalizedTargetPath.endsWith(f.path.replace(/\\/g, '/'))
+      );
+
+      if (!fileInfo) {
+        throw new Error(`Could not resolve selected file in repository: ${file.path}`);
       }
+
+      setSelectedFile(fileInfo);
+      const analysis = await analysisApi.analyzeFile(fileInfo.path);
+      setRiskScore(analysis.risk_score);
     } catch (err: any) {
       console.error('Error analyzing file:', err);
-      setError('Failed to analyze file');
+      setSelectedFile(null);
+      setRiskScore(null);
+      setError('Failed to analyze file for the selected chart segment');
     }
   };
 
   const handleRefactorClick = async () => {
     if (!riskScore) return;
+
+    const normalizedFile = riskScore.file.toLowerCase().replace(/\\/g, '/');
+    const extensionMatch = normalizedFile.match(/\.[^./]+$/);
+    const extension = extensionMatch ? extensionMatch[0] : '';
+
+    if (UNSUPPORTED_REFACTOR_EXTENSIONS.has(extension)) {
+      setError(`ICA Agent refactor is only available for text/code files. "${riskScore.file}" is not supported.`);
+      return;
+    }
 
     setIsRefactoring(true);
     setError(null);
@@ -235,7 +286,7 @@ function App() {
       <div className="glow-orb bottom-0 left-1/2 h-72 w-72 -translate-x-1/2 bg-fuchsia-500/10" />
 
       <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/45 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-[1680px] items-center justify-between px-5 py-4 sm:px-8 2xl:max-w-[1820px] 2xl:px-10">
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-cyan-300 via-sky-400 to-violet-500 shadow-[0_0_30px_rgba(56,189,248,0.25)]">
               <span className="text-xl font-black text-slate-950">D</span>
@@ -253,16 +304,16 @@ function App() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-        <section className="glass-panel-strong relative overflow-hidden p-8 sm:p-10">
+      <main className="relative z-10 mx-auto flex w-full max-w-[1680px] flex-col gap-8 px-5 py-8 sm:px-8 lg:py-10 2xl:max-w-[1820px] 2xl:px-10">
+        <section className="glass-panel-strong relative overflow-hidden p-8 sm:p-10 xl:p-12">
           <div className="glow-orb -right-8 top-0 h-44 w-44 bg-cyan-400/15" />
           <div className="glow-orb left-16 top-10 h-36 w-36 bg-violet-500/15" />
-          <div className="relative max-w-3xl">
+          <div className="relative max-w-5xl">
             <div className="section-label mb-3">AI-Powered Sprint Intelligence</div>
-            <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+            <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl xl:max-w-4xl xl:text-6xl">
               Sleek repository intelligence for architecture risk, sprint survival, and safe refactors.
             </h2>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
+            <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300 sm:text-lg xl:text-[1.1rem]">
               Analyze local repositories, surface hotspots, and generate guided AI refactors inside a premium command-center experience.
             </p>
 
@@ -346,18 +397,18 @@ function App() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-4">
               {statCards.map((card) => {
                 const Icon = card.icon;
                 return (
-                  <div key={card.label} className="glass-panel relative overflow-hidden p-5">
+                  <div key={card.label} className="glass-panel relative overflow-hidden p-6 xl:p-7">
                     <div className={`absolute inset-0 bg-gradient-to-br ${card.accent}`} />
                     <div className="relative flex items-start justify-between gap-4">
                       <div className="space-y-2">
                         <div className="section-label">{card.label}</div>
                         <div
                           className={`font-semibold text-white ${
-                            card.isRepo ? 'truncate text-xl' : 'text-4xl'
+                            card.isRepo ? 'truncate text-2xl xl:text-[1.75rem]' : 'text-4xl xl:text-5xl'
                           }`}
                         >
                           {card.value}
@@ -372,17 +423,16 @@ function App() {
               })}
             </div>
 
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-              <div className="xl:col-span-2">
-                <CodebaseMap data={sunburstData} onFileClick={handleFileClick} />
-              </div>
+            <div className="space-y-6">
+              <CodebaseMap data={sunburstData} onFileClick={handleFileClick} />
 
-              <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
                 <SprintSurvivalScore sprintSurvival={sprintSurvival} />
                 <RiskPanel
                   riskScore={riskScore}
                   onRefactorClick={handleRefactorClick}
                   isRefactoring={isRefactoring}
+                  error={error}
                 />
               </div>
             </div>
